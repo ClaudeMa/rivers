@@ -9,7 +9,7 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
     print "computing river %s" % (name)
     river = River(osm_id, name, sandre=sandre, parent=parent)
     index[osm_id] = river
-    sql = "SELECT r.osm_id, r.name, r.sandre FROM relations INNER JOIN tributaries ON relations.osm_id = tributaries.main_id INNER JOIN relations r ON tributaries.tributary_id = r.osm_id WHERE relations.osm_id = %s ORDER BY tributaries.id";
+    sql = "SELECT r.osm_id, r.name, r.sandre FROM relations INNER JOIN tributaries ON relations.osm_id = tributaries.main_id INNER JOIN relations r ON tributaries.tributary_id = r.osm_id WHERE relations.osm_id = %s ORDER BY tributaries.id"  % osm_id;
     cursor.execute(sql, (osm_id,))
     for (ch_osm_id, ch_name, ch_sandre) in cursor.fetchall():
         if index.has_key(ch_osm_id):
@@ -18,11 +18,11 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
         tributary = createRiver(cursor, index, ch_osm_id, ch_name, ch_sandre, river)
         river.childs.append(tributary)
 
-    sql = "WITH RECURSIVE t(geom) AS(SELECT (ST_Dump(geom)).geom AS geom FROM relations WHERE osm_id = %s UNION ALL SELECT ST_Union(f.geom, t.geom) FROM (SELECT (st_dump(geom)).geom AS geom FROM relations WHERE osm_id = %s) AS f, t  WHERE ST_StartPoint(f.geom) = ST_EndPoint(t.geom)) SELECT max(ST_Length(ST_LineMerge(geom), TRUE)) FROM t"
+    sql = "WITH RECURSIVE t(geom) AS(SELECT (ST_Dump(geom)).geom AS geom FROM relations WHERE osm_id = %s UNION ALL SELECT ST_Union(f.geom, t.geom) FROM (SELECT (st_dump(geom)).geom AS geom FROM relations WHERE osm_id = %s) AS f, t  WHERE ST_StartPoint(f.geom) = ST_EndPoint(t.geom)) SELECT max(ST_Length(ST_LineMerge(geom), TRUE)) FROM t" % (osm_id,  osm_id);
     cursor.execute(sql, (osm_id,osm_id))
     river.length = int(cursor.fetchone()[0] or 0)
 
-    sql = "SELECT r1.osm_id, r1.name FROM relations r1 INNER JOIN relations r2 ON (ST_Intersects(r1.geom, r2.geom) AND r1.t = 'boundary') INNER JOIN (SELECT ST_DumpPoints(geom) AS geom FROM relations WHERE osm_id = %s) r3 ON ST_Intersects((r3.geom).geom, ST_MakePolygon(r1.geom)) WHERE r2.osm_id = %s ORDER BY (r3.geom).path"
+    sql = "SELECT r1.osm_id, r1.name FROM relations r1 INNER JOIN relations r2 ON (ST_Intersects(r1.geom, r2.geom) AND r1.t = 'boundary') INNER JOIN (SELECT ST_DumpPoints(geom) AS geom FROM relations WHERE osm_id = %s) r3 ON ST_Intersects((r3.geom).geom, ST_MakePolygon(r1.geom)) WHERE r2.osm_id = %s ORDER BY (r3.geom).path" % (osm_id, osm_id)
     cursor.execute(sql, (osm_id,osm_id))
     seens = {}
     for (ci_osm_id, ci_name) in cursor.fetchall():
@@ -31,15 +31,25 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
         river.cities.append((ci_osm_id, unicode(ci_name, 'utf-8')))
         seens[ci_osm_id] = True;
 
-    sql = "SELECT w.osm_id, w.name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id INNER JOIN ways w ON ST_LineCrossingDirection(ways.geom, w.geom) != 0 WHERE w.t = 'bridge' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(w.geom, ST_StartPoint(ways.geom))"
+    sql = "SELECT w.osm_id, w.name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id INNER JOIN ways w ON ST_LineCrossingDirection(ways.geom, w.geom) != 0 WHERE w.t = 'bridge' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(w.geom, ST_StartPoint(ways.geom))" % osm_id
     cursor.execute(sql, (osm_id,))
     for (br_osm_id, br_name) in cursor.fetchall():
         river.bridges.append((br_osm_id, unicode(br_name, 'utf-8')))
+        
+    sql = "SELECT osm_id, name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id WHERE t = 'lock' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(geom, ST_StartPoint(ways.geom));" % osm_id
+    cursor.execute(sql, (osm_id,))
+    for (lo_osm_id, lo_name) in cursor.fetchall():
+        river.locks.append((lo_osm_id, unicode(lo_name, 'utf-8')))
+     
+    sql = "SELECT osm_id, name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id WHERE t = 'tunnel' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(geom, ST_StartPoint(ways.geom));" % osm_id
+    cursor.execute(sql, (osm_id,))
+    for (lo_osm_id, lo_name) in cursor.fetchall():
+        river.tunnels.append((lo_osm_id, unicode(lo_name, 'utf-8')))
 
     return river
 
 class River(object):
-    def __init__(self, osm_id, name, sandre = "", childs=None, cities=None, bridges=None, length=0, parent=None):
+    def __init__(self, osm_id, name, sandre = "", childs=None, cities=None, bridges=None, locks=None,  tunnels=None, length=0, parent=None):
         self.osm_id = osm_id
         self.name = unicode(name, 'utf-8')
         self.length = length
@@ -57,6 +67,14 @@ class River(object):
             self.bridges = bridges
         else:
             self.bridges = []
+        if locks:
+            self.locks = locks
+        else:
+            self.locks = []
+        if tunnels:
+            self.tunnels = tunnels
+        else:
+            self.tunnels = []
 
 def outputriver(river):
     template = Template(filename='templates/river.html', input_encoding="utf-8", output_encoding="utf-8", strict_undefined=True)
@@ -69,10 +87,10 @@ def outputriver(river):
 if __name__ == '__main__':
     indextemplate = Template(filename='templates/index.html', input_encoding="utf-8", output_encoding="utf-8", strict_undefined=True)
 
-    conn = psycopg2.connect("dbname=osm")
+    conn = psycopg2.connect("dbname='osm' user='osm' host='localhost' password='osm'")
     cursor = conn.cursor()
 
-    cursor.execute("SELECT osm_id, name, sandre FROM roots")
+    cursor.execute("SELECT osm_id, name, sandre FROM roots ORDER BY name")
 
     index = {}
     roots = []
