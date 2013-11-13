@@ -7,7 +7,7 @@ le faire pointer vers le fichier osm qui vous intéresse) puis le lancer.
 
 Un dossier htmloutput sera créé. Il contiendra:
 Un fichier index.html contenant la liste des rivières et leurs affluents.
-Un fichier html par rivière. Ce fichier affichera pour la rivière, sa longueure
+Un fichier html par cours d'eau. Ce fichier affichera pour le cours d'eau, sa longueur
 totale (basée sur le plus long chemin obtenu en parcourant les composants de la
-relation), la liste des commune traversées, et la liste des ponts qui enjambent
-la rivière.
+relation), la liste des communes traversées, et la liste des ponts qui enjambent
+la rivière, la liste des voies passant sous la rivière et la liste des écluses situées sur le cours d'eau
