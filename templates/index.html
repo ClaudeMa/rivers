@@ -30,7 +30,7 @@ $(function() {
 <body>
     <h1>Liste des fleuves et affluents à la date du ${str(datetime.date.today())}</h1>
     <%def name="showRiver(river)">
-                <div><a href="${river.osm_id| u}.html">${river.name| h}</a></div>
+        <div><a href="${river.osm_id| u}.html">${river.name| h}</a></div>
         % if river.childs:
                 <ol>
                     % for tributary in river.childs:
