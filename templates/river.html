@@ -11,7 +11,7 @@
     % if river.sandre:
     <p><a href="http://sandre.eaufrance.fr/app/chainage/courdo/htm/${river.sandre| u}.php">lien Sandre</a></p>
     % endif
-    <div class="list"><h2>liste des villes traversée</h2>
+    <div class="list"><h2>liste des villes traversées</h2>
         <ol>
         % for city in river.cities:
             <li><a href="http://www.openstreetmap.org/browse/relation/${city[0]| u}">${city[1]| h}</a></li>
@@ -22,6 +22,21 @@
         <ol>
         % for bridge in river.bridges:
             <li><a href="http://www.openstreetmap.org/browse/way/${bridge[0]| u}">${bridge[1]| h}</a></li>
+        % endfor
+        </ol>
+    </div>
+    <div class="list"><h2>liste des tunnels</h2>
+        <ol>
+        % for tunnel in river.tunnels:
+            <li><a href="http://www.openstreetmap.org/browse/way/${tunnel[0]| u}">${tunnel[1]| h}</a></li>
+        % endfor
+        </ol>
+    </div>
+    
+    <div class="list"><h2>liste des écluses</h2>
+        <ol>
+        % for lock in river.locks:
+            <li><a href="http://www.openstreetmap.org/browse/way/${lock[0]| u}">${lock[1]| h}</a></li>
         % endfor
         </ol>
     </div>
