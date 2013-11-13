@@ -30,7 +30,7 @@ class Node(object):
         return ("Node #%d: <%f, %f>" % (self.osm_id, self.geom.lon, self.geom.lat))
 
 class Way(object):
-    def __init__(self, osm_id, name=None, nodes=None, bridge=None, ref=None, name_fr=None):
+    def __init__(self, osm_id, name=None, nodes=None, bridge=None, tunnel=None, ref=None, name_fr=None,  lock=None, lock_name=None, lock_ref=None):
         self.osm_id = int(osm_id);
         if nodes:
             self.nodes = nodes
@@ -41,22 +41,29 @@ class Way(object):
         self.bridge = bridge
         self.ref = ref
         self.name_fr = name_fr
-
+        self.lock = lock
+        self.lock_name = lock_name
+        self.lock_ref = lock_ref
+        self.tunnel = tunnel
+       
     def __getattr__(self, key):
         if key == "type":
-            if self.bridge == "yes":
-                return "bridge"
-            else:
-                return None
+            if self.lock == "yes":
+                return "lock";
+            if self.bridge != None:
+                return "bridge";
+            if self.tunnel != None:
+                return "tunnel"
+            return None
         elif key == "name":
-            for prop in ['name_fr', '_name', 'ref']:
+            for prop in ['lock_name','name_fr', '_name', 'ref', 'lock_ref']:
                 try:
                     val = getattr(self, prop)
                     if val:
                         return val
                 except AttributeError:
                     pass
-            else:
+            else:   
                 return "#" + str(self.osm_id)
 
     def __setattr__(self, key, value):
@@ -76,7 +83,6 @@ class Relation(object):
                 ways=None, tributaries=None, discarded=False, waterway=None, reltype=None, 
                 admin_level=None, boundary=None, ref_sandre="", name_fr=None):
         self.osm_id = int(osm_id)
-
         self._name = name
         self.name_fr = name_fr
 
@@ -103,8 +109,11 @@ class Relation(object):
 
     def __getattr__(self, key):
         if key == "type":
-            if self._type == "waterway" and self.waterway in ["river", "stream"]:
-                return "river"
+            if self._type == "waterway":
+                if self.waterway == "canal":
+                    return "canal"
+                if self.waterway in ["river","stream"]:
+                    return "river"
             elif self.admin_level == "8" and self.boundary == "administrative":
                 return "boundary"
             else:
@@ -189,6 +198,7 @@ class OsmHandler(xml.sax.handler.ContentHandler):
         self._curnode = None
 
     def startElement(self, name, attrs):
+        print ('computing %s') % name
         if name == "node":
             try:
                 self._curnode = Node(attrs.get('id'), attrs.get('lon'), attrs.get('lat'))
@@ -198,6 +208,8 @@ class OsmHandler(xml.sax.handler.ContentHandler):
         elif name == "way":
             try:
                 self._curway = Way(attrs.get('id'))
+                #print ('Way_lock %s') % (Way.lock)
+                #print ('Way_bridge %s') % (Way.bridge)
             except:
                 return
 
@@ -232,7 +244,13 @@ class OsmHandler(xml.sax.handler.ContentHandler):
         elif name == "tag":
             key = attrs.get('k').lower()
             value = attrs.get('v')
-            if key == "name":
+            if key == "lock_name":
+                if self._curway:
+                    self._curway.lock_name = value
+            elif key == "lock_ref":
+                if self._curway:
+                    self._curway.lock_ref = value
+            elif key == "name":
                 if self._curway:
                     self._curway.name = value
                 elif self._currel:
@@ -241,7 +259,8 @@ class OsmHandler(xml.sax.handler.ContentHandler):
                 if key in ['type', 'waterway', 'admin_level', 'boundary', 'ref:sandre', 'name:fr']:
                     setattr(self._currel, key.replace(':', '_'), value)
             elif self._curway:
-                if key in ['bridge', 'ref', 'name:fr']:
+                if key in ['bridge', 'ref', 'name:fr', 'lock', 'lock_name',  'lock_ref',  'tunnel']:
+                    #print ('valeur %s') % (value)
                     setattr(self._curway, key.replace(':', '_'), value)
 
     def endElement(self, name):
@@ -254,8 +273,9 @@ class OsmHandler(xml.sax.handler.ContentHandler):
         elif name == "way":
             if self._curway:
                 waytype = self._curway.type or ''
+                if waytype == 'lock':
+                    self._curway.name = self._curway.lock_name
                 #print (("adding %s") % (self._curway))
-
                 self.files['ways'].write("%d|%s|%s\n" % (self._curway.osm_id, self._curway.name.encode("utf-8").replace('|', '\|'), waytype))
                 for ref in self._curway.nodes:
                     self.files['nodesinway'].write("%d|%d\n" % (int(self._curway), int(ref)))
@@ -266,7 +286,8 @@ class OsmHandler(xml.sax.handler.ContentHandler):
             if self._currel:
                 reltype = self._currel.type
 
-                if reltype in ['river', 'boundary']:
+                if reltype in ['river', 'canal','stream','boundary']:
+                    #print ('reltype %s') % (reltype)
                     #print (("adding %s") % (self._currel))
 
                     self.files['relations'].write("%d|%s|%s|%s\n" % (self._currel.osm_id, self._currel.name.encode("utf-8").replace('|', '\|'), reltype, self._currel.ref_sandre.encode("utf-8").replace('|', '\|')))
@@ -291,7 +312,7 @@ def createschema(cursor):
                     cursor.execute(line[:-1])
 
 if __name__ == '__main__':
-    conn = psycopg2.connect("dbname=osm")
+    conn = psycopg2.connect("dbname='osm' user='osm' host='localhost' password='osm'")
     conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
     cursor = conn.cursor()
     createschema(cursor)
@@ -310,6 +331,7 @@ if __name__ == '__main__':
         print "computing relation geometries"
         cursor.execute("update relations set geom = boundarygeom(osm_id) where t = 'boundary'")
         cursor.execute("update relations set geom = rivergeom(osm_id) where t = 'river'")
+        cursor.execute("update relations set geom = rivergeom(osm_id) where t = 'canal'")
     except Exception, e:
         import traceback
         traceback.print_exc()
