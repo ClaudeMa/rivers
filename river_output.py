@@ -6,7 +6,7 @@ import os, sys, shutil, psycopg2, glob
 from mako.template import Template
 
 def createRiver(cursor, index, osm_id, name, sandre, parent=None):
-    print "computing river %s" % (name)
+    print (("computing river %s - osm_id %s") % (name,osm_id))
     river = River(osm_id, name, sandre=sandre, parent=parent)
     index[osm_id] = river
     sql = "SELECT r.osm_id, r.name, r.sandre FROM relations INNER JOIN tributaries ON relations.osm_id = tributaries.main_id INNER JOIN relations r ON tributaries.tributary_id = r.osm_id WHERE relations.osm_id = %s ORDER BY tributaries.id"  % osm_id;
@@ -49,11 +49,14 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
     return river
 
 class River(object):
-    def __init__(self, osm_id, name, sandre = "", childs=None, cities=None, bridges=None, locks=None,  tunnels=None, length=0, parent=None):
+    def __init__(self, osm_id, name, sandre = None, childs=None, cities=None, bridges=None, locks=None,  tunnels=None, length=0, parent=None):
         self.osm_id = osm_id
         self.name = unicode(name, 'utf-8')
         self.length = length
-        self.sandre = sandre
+        if sandre != None:
+            self.sandre = unicode(sandre, 'utf-8')
+        else:
+            self.sandre = ""
         self.parent = parent
         if childs:
             self.childs = childs
@@ -79,7 +82,7 @@ class River(object):
 def outputriver(river):
     template = Template(filename='templates/river.html', input_encoding="utf-8", output_encoding="utf-8", strict_undefined=True)
     with open("htmloutput/%d.html" % (river.osm_id), "w") as fd:
-        print "output for river #%d" % (river.osm_id)
+        print "output for river #%d - name %s - sandre %s" % (river.osm_id, river.name, river.sandre)
         fd.write(template.render(river=river))
     for tributary in river.childs:
         outputriver(tributary)
