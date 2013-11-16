@@ -6,10 +6,11 @@
 
 <title>${river.name| h}</title>
 <body>
-    <h1>${river.name| h} (${"%.1f" % (river.length / 1000)} km)</h1>
-    <p><a href="http://www.openstreetmap.org/browse/relation/${int(river.osm_id)| u}">lien OpenStreetmap</a></p>
+	<a href="/courdo/index.html">Retour à la liste</a>
+    <h1>${river.name| h} (${"%.1f" % (river.length)} km)</h1>
+    <p><a href="http://www.openstreetmap.org/browse/relation/${int(river.osm_id)| u}">lien OpenStreetmap (relation=${river.osm_id})</a></p>
     % if river.sandre:
-    <p><a href="http://sandre.eaufrance.fr/app/chainage/courdo/htm/${river.sandre| u}.php">lien Sandre</a></p>
+    <p><a href="http://sandre.eaufrance.fr/app/chainage/courdo/htm/${river.sandre| u}.php">lien Sandre (ref:sandre=${river.sandre})</a></p>
     % endif
     <div class="list"><h2>liste des villes traversées</h2>
         <ol>
@@ -55,4 +56,5 @@
         </ol>
     </div>
     % endif
+    <a href="/courdo/index.html">Retour à la liste</a>
 </body>
