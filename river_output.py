@@ -18,12 +18,13 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
         tributary = createRiver(cursor, index, ch_osm_id, ch_name, ch_sandre, river)
         river.childs.append(tributary)
 
-    sql = "WITH RECURSIVE t(geom) AS(SELECT (ST_Dump(geom)).geom AS geom FROM relations WHERE osm_id = %s UNION ALL SELECT ST_Union(f.geom, t.geom) FROM (SELECT (st_dump(geom)).geom AS geom FROM relations WHERE osm_id = %s) AS f, t  WHERE ST_StartPoint(f.geom) = ST_EndPoint(t.geom)) SELECT max(ST_Length(ST_LineMerge(geom), TRUE)) FROM t" % (osm_id,  osm_id);
+    #sql = "WITH RECURSIVE t(geom) AS(SELECT (ST_Dump(geom)).geom AS geom FROM relations WHERE osm_id = %s UNION ALL SELECT ST_Union(f.geom, t.geom) FROM (SELECT (st_dump(geom)).geom AS geom FROM relations WHERE osm_id = %s) AS f, t  WHERE ST_StartPoint(f.geom) = ST_EndPoint(t.geom)) SELECT max(ST_Length(ST_LineMerge(geom), TRUE)) FROM t" % (osm_id,  osm_id);
+    sql = "SELECT (sum(ST_Length_Spheroid(geom,'SPHEROID[\"WGS 84\",6378137,298.257223563]'))/1000) FROM relations WHERE osm_id = %s"  % osm_id;
     cursor.execute(sql, (osm_id,osm_id))
-    river.length = int(cursor.fetchone()[0] or 0)
-
+    river.length = float(cursor.fetchone()[0] or 0)
+   
     sql = "SELECT r1.osm_id, r1.name FROM relations r1 INNER JOIN relations r2 ON (ST_Intersects(r1.geom, r2.geom) AND r1.t = 'boundary') INNER JOIN (SELECT ST_DumpPoints(geom) AS geom FROM relations WHERE osm_id = %s) r3 ON ST_Intersects((r3.geom).geom, ST_MakePolygon(r1.geom)) WHERE r2.osm_id = %s ORDER BY (r3.geom).path" % (osm_id, osm_id)
-    cursor.execute(sql, (osm_id,osm_id))
+    cursor.execute(sql, (osm_id,))
     seens = {}
     for (ci_osm_id, ci_name) in cursor.fetchall():
         if seens.has_key(ci_osm_id):
