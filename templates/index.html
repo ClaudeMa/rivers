@@ -17,18 +17,56 @@ ol {
 ol {
     list-style-type: disc;
 }
+.highlight {
+    background-color: #fff34d;
+    -moz-border-radius: 5px; /* FF1+ */
+    -webkit-border-radius: 5px; /* Saf3-4 */
+    border-radius: 5px; /* Opera 10.5, IE 9, Saf5, Chrome */
+    -moz-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* FF3.5+ */
+    -webkit-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* Saf3.0+, Chrome */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7); /* Opera 10.5+, IE 9.0 */
+}
+
+.highlight {
+    padding:1px 4px;
+    margin:0 -4px;
+}
 </style>
 
-<script src="jquery.js"></script>
-<script src="collapser.js"></script>
+<script type="text/javascript"src="jquery.js"></script>
+<script type="text/javascript"src="collapser.js"></script>
+<script type="text/javascript" src="highlight.js"></script>
 <script>
 $(function() {
     $("li").collapser({selector: "ol"}).css("list-style-type", "none");
+    
+    $('#text-search').bind('keyup change', function(ev) {
+        var searchTerm = $(this).val();
+		if( $('li > ol').css("display") == 'none' ){
+			$('li > ol').show() 
+		}
+        $('body').removeHighlight();
+        if ( searchTerm ) {
+            $('body').highlight( searchTerm );
+        }
+    });
+    $("#collapse-all").click(function (e) {
+		e.preventDefault();
+		if( $('li > ol').css("display") == 'none' ){
+			$('li > ol').show() 
+		}
+		else{
+			$('li > ol').hide()
+		}
+		return false;
+	});
 });
 </script>
 
 <body>
     <h1>Liste des fleuves et affluents à la date du ${str(datetime.date.today())}</h1>
+    <p><a id="collapse-all" href="#">Tout déplier/plier</a></p>
+    <p>Rechercher: <input type="text" id="text-search" /></p>
     <%def name="showRiver(river)">
         <div><a href="${river.osm_id| u}.html">${river.name| h}</a></div>
         % if river.childs:
