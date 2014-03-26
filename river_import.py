@@ -30,7 +30,7 @@ class Node(object):
         return ("Node #%d: <%f, %f>" % (self.osm_id, self.geom.lon, self.geom.lat))
 
 class Way(object):
-    def __init__(self, osm_id, name=None, nodes=None, bridge=None, tunnel=None, ref=None, name_fr=None,  lock=None, lock_name=None, lock_ref=None):
+    def __init__(self, osm_id, name=None, nodes=None, bridge=None, tunnel=None, ref=None, name_fr=None,  lock=None, lock_name='', lock_ref='', lock_height='', cemt='', motorboat=''):
         self.osm_id = int(osm_id);
         if nodes:
             self.nodes = nodes
@@ -44,8 +44,11 @@ class Way(object):
         self.lock = lock
         self.lock_name = lock_name
         self.lock_ref = lock_ref
+        self.lock_height = lock_height
+        self.cemt = cemt
+        self.motorboat = motorboat
         self.tunnel = tunnel
-       
+
     def __getattr__(self, key):
         if key == "type":
             if self.lock == "yes":
@@ -56,14 +59,14 @@ class Way(object):
                 return "tunnel"
             return None
         elif key == "name":
-            for prop in ['lock_name','name_fr', '_name', 'ref', 'lock_ref']:
+            for prop in ['name_fr', '_name', 'ref']:
                 try:
                     val = getattr(self, prop)
                     if val:
                         return val
                 except AttributeError:
                     pass
-            else:   
+            else:
                 return "#" + str(self.osm_id)
 
     def __setattr__(self, key, value):
@@ -79,8 +82,8 @@ class Way(object):
         return "Way #%d, %s" % (self.osm_id, self.name)
 
 class Relation(object):
-    def __init__(self, osm_id, name="", 
-                ways=None, tributaries=None, discarded=False, waterway=None, reltype=None, 
+    def __init__(self, osm_id, name="",
+                ways=None, tributaries=None, discarded=False, waterway=None, reltype=None,
                 admin_level=None, boundary=None, ref_sandre="", name_fr=None):
         self.osm_id = int(osm_id)
         self._name = name
@@ -146,11 +149,11 @@ class Relation(object):
             res += ", %s" % (self.name.encode("utf-8"))
         return res
 
-class OsmHandler(xml.sax.handler.ContentHandler): 
+class OsmHandler(xml.sax.handler.ContentHandler):
     tables = [('relations', ['osm_id', 'name', 't', 'sandre'], None),
               ('tributaries', ['main_id', 'tributary_id'], None),
               ('waysinrel', ['rel_id', 'way_id'], 'waysinrel_relid_seq'),
-              ('ways', ['osm_id', 'name', 't'], None),
+              ('ways', ['osm_id', 'name', 't', 'cemt', 'lock_name', 'lock_ref', 'lock_height', 'motorboat'], None),
               ('nodesinway', ['way_id', 'node_id'], 'nodesinway_wayid_seq'),
               ('nodes', ['osm_id', 'geom'], None),
     ]
@@ -208,8 +211,6 @@ class OsmHandler(xml.sax.handler.ContentHandler):
         elif name == "way":
             try:
                 self._curway = Way(attrs.get('id'))
-                #print ('Way_lock %s') % (Way.lock)
-                #print ('Way_bridge %s') % (Way.bridge)
             except:
                 return
 
@@ -250,6 +251,16 @@ class OsmHandler(xml.sax.handler.ContentHandler):
             elif key == "lock_ref":
                 if self._curway:
                     self._curway.lock_ref = value
+            elif key == "lock:height":
+                if self._curway:
+                    self._curway.lock_height = value
+            elif key == "cemt":
+                if self._curway:
+                    self._curway.cemt = value
+            elif key == "motorboat":
+                if value in ['yes', 'private', 'destination']:
+                    if self._curway:
+                        self._curway.motorboat = value
             elif key == "name":
                 if self._curway:
                     self._curway.name = value
@@ -259,8 +270,8 @@ class OsmHandler(xml.sax.handler.ContentHandler):
                 if key in ['type', 'waterway', 'admin_level', 'boundary', 'ref:sandre', 'name:fr']:
                     setattr(self._currel, key.replace(':', '_'), value)
             elif self._curway:
-                if key in ['bridge', 'ref', 'name:fr', 'lock', 'lock_name',  'lock_ref',  'tunnel']:
-                    #print ('valeur %s') % (value)
+                if key in ['bridge', 'ref', 'name:fr', 'lock', 'lock_name',  'lock_ref', 'lock:height',  'motorboat' ,  'cemt',  'tunnel', ]:
+                    print ('valeur %s') % (value)
                     setattr(self._curway, key.replace(':', '_'), value)
 
     def endElement(self, name):
@@ -272,11 +283,10 @@ class OsmHandler(xml.sax.handler.ContentHandler):
 
         elif name == "way":
             if self._curway:
+                print(self._curway.type)
                 waytype = self._curway.type or ''
-                if waytype == 'lock':
-                    self._curway.name = self._curway.lock_name
-                #print (("adding %s") % (self._curway))
-                self.files['ways'].write("%d|%s|%s\n" % (self._curway.osm_id, self._curway.name.encode("utf-8").replace('|', '\|'), waytype))
+                print (("adding %s") % (self._curway))
+                self.files['ways'].write("%d|%s|%s|%s|%s|%s|%s|%s\n" % (self._curway.osm_id, self._curway.name.encode("utf-8").replace('|', '\|'),  waytype, self._curway.cemt.encode("utf-8").replace('|', '\|'),self._curway.lock_name.encode("utf-8").replace('|', '\|'), self._curway.lock_ref.encode("utf-8").replace('|', '\|'), self._curway.lock_height.encode("utf-8").replace('|', '\|'), self._curway.motorboat.encode("utf-8").replace('|', '\|')))
                 for ref in self._curway.nodes:
                     self.files['nodesinway'].write("%d|%d\n" % (int(self._curway), int(ref)))
 

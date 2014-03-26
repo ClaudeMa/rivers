@@ -1,17 +1,32 @@
 <!DOCTYPE html>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<link href="jquery-ui/css/humanity/jquery-ui-1.10.3.custom.min.css" type="text/css" rel="stylesheet"></link>
 <script src="jquery.js"></script>
+<script src="jquery-ui/js/jquery-ui-1.10.3.custom.min.js"></script>
 <script src="collapser.js"></script>
-<script> $(function() { $("div.list").collapser({selector: "ol", initialopen: true}) }) </script>
+<script src="river.js"></script>
+
+<style type="text/css">
+ol {
+    list-style-type: disc;
+}
+</style>
+
+<script> $(function() { $("div.list").collapser({selector: "ol", initialopen: false}) }) </script>
 
 <title>${river.name| h}</title>
 <body>
-	<a href="/courdo/index.html">Retour à la liste</a>
+    <div id="rawId" title="Edition">
+    </div>
+    <a href="/courdo/index.html">Retour à la liste</a>
     <h1>${river.name| h} (${"%.1f" % (river.length)} km)</h1>
-    <p><a href="http://www.openstreetmap.org/browse/relation/${int(river.osm_id)| u}">lien OpenStreetmap (relation=${river.osm_id})</a></p>
+    <p><a href="http://www.openstreetmap.org/browse/relation/${int(river.osm_id)| u}" target="_blanck">lien OpenStreetmap (relation=${river.osm_id})</a></p>
     % if river.sandre:
-    <p><a href="http://sandre.eaufrance.fr/app/chainage/courdo/htm/${river.sandre| u}.php">lien Sandre (ref:sandre=${river.sandre})</a></p>
+    <p><a href="http://sandre.eaufrance.fr/app/chainage/courdo/htm/${river.sandre| u}.php" target="_blanck">lien Sandre (ref:sandre=${river.sandre})</a></p>
     % endif
+    <p><a href="http://ra.osmsurround.org/analyze.jsp?relationId=${river.osm_id}" target="_blanck">Vérifier la relation</a></p>
+    <p><a href="http://localhost:8111/import?url=http://api.openstreetmap.org/api/0.6/relation/${river.osm_id}/full">Editer dans JOSM</a></p>
+    <p><a href="http://osm.cdauth.eu/route-manager/gpx.jsp?relation=${int(river.osm_id)| u}">T&eacute;l&eacute;charger GPX</a></p>
     <div class="list"><h2>liste des villes traversées</h2>
         <ol>
         % for city in river.cities:
@@ -21,24 +36,52 @@
     </div>
     <div class="list"><h2>liste des ponts</h2>
         <ol>
-        % for bridge in river.bridges:
-            <li><a href="http://www.openstreetmap.org/browse/way/${bridge[0]| u}">${bridge[1]| h}</a></li>
-        % endfor
+            <table border='1'>
+            <tr><th>nom</th><th colspan='2'> Edition</th></tr>
+            % for bridge in river.bridges:
+                <tr>
+                    <td><a href="http://www.openstreetmap.org/browse/way/${bridge[0]| u}">${bridge[1]| h}</a></td>
+                    <td><a id='edit_${bridge[0]}' href='#'>JOSM</a></td>
+                    <td><a id='raw_${bridge[0]}' href='#'>Raw</a></td>
+                </tr>
+            % endfor
+            </table>
         </ol>
     </div>
     <div class="list"><h2>liste des tunnels</h2>
         <ol>
+        <table border='1'>
+        <tr><th>nom</th><th colspan='2'> Edition</th></tr>
         % for tunnel in river.tunnels:
-            <li><a href="http://www.openstreetmap.org/browse/way/${tunnel[0]| u}">${tunnel[1]| h}</a></li>
+            <tr>
+            <td><a href="http://www.openstreetmap.org/browse/way/${tunnel[0]| u}">${tunnel[1]| h}</a></td>
+            <td><a id='edit_${tunnel[0]}' href='#'>JOSM</a></td>
+            <td><a id='raw_${tunnel[0]}' href='#'>Raw</a></td>
+            </tr>
         % endfor
+        </table>
         </ol>
     </div>
     
     <div class="list"><h2>liste des écluses</h2>
         <ol>
+        <table border='1'>
+        <tr><th>osm_id</th><th>nom</th><th>Lock_name</th><th>lock_ref</th><th>lock_height</th><th>CEMT</th><th>Motorboat</th><th colspan="2">Editer</th></tr>
         % for lock in river.locks:
-            <li><a href="http://www.openstreetmap.org/browse/way/${lock[0]| u}">${lock[1]| h}</a></li>
+        <tr>
+            <td><a href="http://www.openstreetmap.org/browse/way/${lock.osm_id| u}">${lock.osm_id| h}</a></td>
+            <td>${(lock.name == None and ' ' or lock.name)| h}</td>
+            <td>${(lock.lock_name == None and ' ' or lock.lock_name)| h}</td>
+            <td>${(lock.lock_ref == None and ' ' or lock.lock_ref)| h}</td>
+            <td>${(lock.lock_height == None and ' ' or lock.lock_height)| h}</td>
+            <td>${(lock.cemt == None and ' ' or lock.cemt)| h}</td>
+            <td>${(lock.motorboat == None and ' ' or lock.motorboat)| h}</td>
+            <td><a id='edit_${lock.osm_id}' href='#'>JOSM</a></td>
+            <td><a id='raw_${lock.osm_id}' href='#'>Raw</a></td>
+            
+        </tr>
         % endfor
+        </table>
         </ol>
     </div>
 

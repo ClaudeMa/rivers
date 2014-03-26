@@ -37,10 +37,14 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
     for (br_osm_id, br_name) in cursor.fetchall():
         river.bridges.append((br_osm_id, unicode(br_name, 'utf-8')))
         
-    sql = "SELECT osm_id, name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id WHERE t = 'lock' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(geom, ST_StartPoint(ways.geom));" % osm_id
+    sql = "SELECT osm_id, name, lock_name, lock_ref, lock_height, cemt, motorboat FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id WHERE t = 'lock' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(geom, ST_StartPoint(ways.geom));" % osm_id
     cursor.execute(sql, (osm_id,))
-    for (lo_osm_id, lo_name) in cursor.fetchall():
-        river.locks.append((lo_osm_id, unicode(lo_name, 'utf-8')))
+    for (lo_osm_id, lo_name, lo_lock_name, lo_lock_ref, lo_lock_height, lo_cemt, lo_motorboat) in cursor.fetchall():
+        #river.locks.append((lo_osm_id, unicode(lo_name, 'utf-8')))
+        if lo_lock_name != None:
+            lo_lock_name = unicode(lo_lock_name,'utf-8')
+        if river.locks != None:
+            river.locks.append(Lock(lo_osm_id, unicode(lo_name, 'utf-8'), lo_lock_name  , lo_lock_ref, lo_lock_height, lo_cemt, lo_motorboat))
      
     sql = "SELECT osm_id, name FROM waysinrel INNER JOIN ways ON waysinrel.way_id = ways.osm_id WHERE t = 'tunnel' AND waysinrel.rel_id = %s ORDER BY waysinrel.id, ST_Distance(geom, ST_StartPoint(ways.geom));" % osm_id
     cursor.execute(sql, (osm_id,))
@@ -49,6 +53,17 @@ def createRiver(cursor, index, osm_id, name, sandre, parent=None):
 
     return river
 
+class Lock(object):
+    def __init__(self,osm_id,name, lock_name=None, lock_ref=None, lock_height=None, cemt=None, motorboat=None):
+        self.osm_id = osm_id
+        self.name = name
+        self.lock_name = lock_name
+        self.lock_ref = lock_ref
+        self.lock_height = lock_height
+        self.cemt = cemt
+        self.motorboat = motorboat
+        
+        
 class River(object):
     def __init__(self, osm_id, name, sandre = None, childs=None, cities=None, bridges=None, locks=None,  tunnels=None, length=0, parent=None):
         self.osm_id = osm_id
